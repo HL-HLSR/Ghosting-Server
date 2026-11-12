@@ -1,0 +1,99 @@
+[Unit]
+Description=Ghosting Mod Renewed ghost host (UDP 22228)
+Wants=network-online.target
+After=network-online.target
+# No dependency on the console (review 1, minor 6): the game server starts and
+# runs whether or not the console FIFO exists, stopping nothing else stops it, and
+# writing to the FIFO never starts a stopped server.
+
+[Service]
+Type=simple
+User=ghserver
+Group=ghserver
+WorkingDirectory=/var/lib/ghserver
+StateDirectory=ghserver
+StateDirectoryMode=0700
+# L1: access.json comes out owner-only rather than 0644.
+UMask=0077
+Environment=NODE_ENV=production
+Environment=ACCESS_FILE=/var/lib/ghserver/access.json
+# The operator console: a FIFO in the runtime directory that the SERVER opens
+# itself (O_RDWR, so it never sees EOF), written by members of ghsadmin with
+# ghserver-console. Created as root just before start ("+"); any failure is
+# ignored ("-") so the game server always starts. Without the ghsadmin group, or
+# if the FIFO cannot be given to ghserver:ghsadmin, no FIFO is left (never one
+# owned by group root) and a line in the journal says so; the server then runs
+# without a console and says that too. chown -h never follows a symlink.
+RuntimeDirectory=ghserver
+RuntimeDirectoryMode=0755
+Environment=CONSOLE_FIFO=/run/ghserver/console
+ExecStartPre=-+/bin/sh -c 'rm -f /run/ghserver/console; if getent group ghsadmin >/dev/null 2>&1; then mkfifo -m 0620 /run/ghserver/console && chown -h ghserver:ghsadmin /run/ghserver/console || { rm -f /run/ghserver/console; echo "ghserver: could not create the console FIFO - running without a console" >&2; }; else echo "ghserver: group ghsadmin is missing - running without a console (re-run install-ubuntu.sh to create it)" >&2; fi'
+EnvironmentFile=-/etc/ghserver/ghserver.env
+# install-ubuntu.sh rewrites the node path to the one it installed.
+ExecStart=/usr/bin/node --disallow-code-generation-from-strings --disable-proto=delete \
+          --max-old-space-size=256 /opt/ghserver/index.js
+# Node >= 22.13 / 24 also supports the permission model; enable it once you have
+# confirmed your build accepts these paths (state is the only writable one):
+#   --permission --allow-fs-read=/opt/ghserver/ --allow-fs-write=/var/lib/ghserver/
+# `systemctl reload ghserver` re-reads the access file (bans/whitelist/ops).
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=2
+# config / runtime-version errors exit 78 on purpose; do not restart-loop on them.
+RestartPreventExitStatus=78
+TimeoutStopSec=15
+
+StandardInput=null
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ghserver
+# M4 is fixed, so this is a backstop rather than a necessity; genuine lines are
+# no longer at risk of being the thing that is dropped.
+LogRateLimitIntervalSec=30s
+LogRateLimitBurst=3000
+
+# privileges
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+# filesystem: /opt/ghserver is NOT writable, so a future compromise cannot
+# rewrite index.js or src/ and persist across a restart (M7).
+ProtectSystem=strict
+ReadOnlyPaths=/opt/ghserver
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+DevicePolicy=closed
+ProtectProc=invisible
+ProcSubset=pid
+# kernel / host
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+PrivateUsers=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RemoveIPC=yes
+# network: IPv4 UDP only (AF_UNIX kept for a future local admin socket)
+RestrictAddressFamilies=AF_INET AF_UNIX
+# syscalls
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged
+SystemCallErrorNumber=EPERM
+# V8's JIT needs W+X pages: do NOT set MemoryDenyWriteExecute=yes unless you also
+# pass --jitless to node.
+# resources
+MemoryHigh=384M
+MemoryMax=512M
+TasksMax=64
+LimitNOFILE=1024
+LimitCORE=0
+
+[Install]
+WantedBy=multi-user.target

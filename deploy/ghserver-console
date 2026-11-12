@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Send one console command to the running ghost server over its FIFO, so an
+# operator can moderate over SSH without a shell as the service user.
+#
+#   ghserver-console status
+#   ghserver-console 'ban "Griefer" 2h spamming'
+#   ghserver-console reload
+#   ghserver-console            # no arguments: type the command, it is not echoed
+#
+# Approving an operator carries their PIN (op "Nick" PIN). Do that with NO
+# arguments and type the command at the prompt: an argument would sit in your
+# shell history and be visible in `ps` to every local user.
+#
+# Replies are written to the journal, so follow them with:
+#   journalctl -u ghserver -f
+#
+# Membership of the ghsadmin group is what grants access (the FIFO is 0620
+# ghserver:ghsadmin). This script only writes a line; it never reads secrets.
+set -euo pipefail
+
+FIFO="${CONSOLE_FIFO:-/run/ghserver/console}"
+
+if [ ! -p "$FIFO" ]; then
+	echo "console FIFO $FIFO not found - is ghserver running? (systemctl status ghserver)" >&2
+	exit 1
+fi
+
+if [ ! -w "$FIFO" ]; then
+	echo "no permission to write $FIFO - are you in the ghsadmin group? (id -nG)" >&2
+	exit 1
+fi
+
+if [ "$#" -gt 0 ]; then
+	line="$*"
+else
+	line=""
+	if [ -t 0 ]; then
+		printf 'ghserver console> ' >&2
+		IFS= read -r -s line || true
+		printf '\n' >&2
+	else
+		IFS= read -r line || true
+	fi
+	if [ -z "$line" ]; then
+		echo "usage: ghserver-console <command> [args...], or no arguments to type one (not echoed)" >&2
+		exit 2
+	fi
+fi
+
+# One line, exactly what the console expects.
+printf '%s\n' "$line" > "$FIFO"
+echo "sent. replies: journalctl -u ghserver -f" >&2

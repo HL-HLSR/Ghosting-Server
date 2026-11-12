@@ -1,0 +1,33 @@
+# Ghosting server.
+#
+# Зависимостей у проекта нет, сборки нет, поэтому список короткий.
+
+node_modules/
+
+# Секреты
+.env
+.env.*
+*.pem
+*.key
+
+# Локальные артефакты прогонов: fuzz и нагрузочные харнессы из test/tools
+# пишут отчёты рядом с собой.
+*.log
+*-report.json
+coverage/
+
+# Баны, whitelist и список OP конкретного хоста (ACCESS_FILE). Это состояние
+# площадки, а не код: в репозитории ему делать нечего, и адреса игроков в нём
+# тоже есть. .tmp - хвост неудавшейся атомарной записи.
+access.json
+access.json.tmp
+access.json.*.tmp
+
+.DS_Store
+Thumbs.db
+
+# Build output (make-release.js)
+dist/
+
+# firewall-guard test scratch
+.tmp-fw-*/

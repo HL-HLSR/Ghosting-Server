@@ -1,0 +1,20 @@
+{
+  "name": "ghserver",
+  "version": "1.4.0",
+  "private": true,
+  "description": "Dedicated UDP host for Ghosting Mod (Source SDK 2013) online",
+  "main": "index.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "test": "node scripts/run-tests.js",
+    "check": "node scripts/check.js",
+    "fuzz": "node test/tools/fuzz.js",
+    "load": "node test/tools/load.js",
+    "release": "node deploy/make-release.js"
+  },
+  "keywords": ["ghosting", "half-life", "speedrun", "udp"],
+  "license": "SEE LICENSE IN README.md"
+}
