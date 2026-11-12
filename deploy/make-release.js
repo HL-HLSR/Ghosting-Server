@@ -21,7 +21,7 @@ const path = require("node:path");
 const ROOT = path.join(__dirname, "..");
 const DIST = path.join(ROOT, "dist");
 
-const INCLUDE = ["index.js", "src", "package.json", "README.md", "CHANGELOG.md", "deploy"];
+const INCLUDE = ["index.js", "src", "package.json", "README.md", "README.en.md", "CHANGELOG.md", "deploy", "start.cmd"];
 
 const main = () => {
   const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8"));

@@ -20,10 +20,11 @@
 
 1. Установите Node.js (LTS) с https://nodejs.org.
 2. Скачайте репозиторий: **Code → Download ZIP** и распакуйте, например, в `C:\Ghosting-Server`.
-3. Создайте рядом файл `start.cmd`:
+3. Запустите `start.cmd` из архива релиза (или создайте его сами, сохранив в UTF-8):
 
    ```bat
    @echo off
+   chcp 65001 >nul
    cd /d "%~dp0"
    set SERVER_NAME=Мой сервер призраков
    set PORT=22228
